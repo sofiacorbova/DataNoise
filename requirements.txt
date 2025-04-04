@@ -1,0 +1,5 @@
+typing_extensions==4.13.1
+torch==2.6.0
+torchvision==0.21.0
+torchaudio==2.6.0
+torchbearer==0.5.5
