@@ -3,3 +3,4 @@ torch==2.6.0
 torchvision==0.21.0
 torchaudio==2.6.0
 torchbearer==0.5.5
+torchmetrics==1.7.0

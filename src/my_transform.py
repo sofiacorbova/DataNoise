@@ -74,7 +74,9 @@ def add_salt_and_pepper_noise(tensor: torch.Tensor, salt_prob: float|int=0.01, p
     return noisy_tensor
 
 
-def transform_data(gaus: bool=False, pois: bool=False, snp: bool=False) -> transforms.Compose:
+def transform_data(gaus: bool=False, mean: float=0.0, std: float=0.1, 
+                    pois: bool=False, lam: int=30, 
+                    snp: bool=False, salt_prob: float=0.01, pepper_prob: float=0.01) -> transforms.Compose:
     """
     Funkcia na definovanie transformácií pre obrázky - ako sa majú obrázky spracovať pred zadaním do modelu.
 
@@ -101,10 +103,9 @@ def transform_data(gaus: bool=False, pois: bool=False, snp: bool=False) -> trans
                 #torchvision.transforms.Normalize(mean=[0.1307], std=[0.3081]), # nejake sedotonove normalizovanie
         
         # Pridanie rôznych typov a intenzít šumu
-        transforms.Lambda(lambda x: add_gaussian_noise(x, mean=0.0, std=0.1)) if gaus else transforms.Lambda(lambda x: x),
-        transforms.Lambda(lambda x: add_poisson_noise(x, lam=30)) if pois else transforms.Lambda(lambda x: x),
-        transforms.Lambda(lambda x: add_salt_and_pepper_noise(x, salt_prob=0.01, pepper_prob=0.01)) if snp else transforms.Lambda(lambda x: x),
+        transforms.Lambda(lambda x: add_gaussian_noise(x, mean=mean, std=std)) if gaus else transforms.Lambda(lambda x: x),
+        transforms.Lambda(lambda x: add_poisson_noise(x, lam=lam)) if pois else transforms.Lambda(lambda x: x),
+        transforms.Lambda(lambda x: add_salt_and_pepper_noise(x, salt_prob=salt_prob, pepper_prob=pepper_prob)) if snp else transforms.Lambda(lambda x: x)
     ])
 
     return my_transform
-
