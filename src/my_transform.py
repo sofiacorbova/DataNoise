@@ -42,6 +42,7 @@ def add_poisson_noise(tensor: torch.Tensor, lam: float|int=30) -> torch.Tensor:
       Tensor (obrázok) s pridaným Poissonovým šumom.
     """
 
+    tensor = torch.clamp(tensor, min=0)
     noisy_tensor = torch.poisson(tensor * lam) / lam
     return noisy_tensor
 

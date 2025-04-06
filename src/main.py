@@ -1,5 +1,5 @@
 import torch, torchvision, torchbearer
-from torchbearer import Trial, metrics
+from torchbearer import Trial
 from torchvision.models import ResNet18_Weights
 
 from my_transform import transform_data

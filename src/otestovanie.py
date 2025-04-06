@@ -8,9 +8,11 @@ import matplotlib.pyplot as plt
 from my_transform import transform_data
 
 
-model = torchvision.models.resnet18()
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-state_dict = torch.load('DataNoise/models/model_1_state_dict.pth')
+model = torchvision.models.resnet18().to(device)
+
+state_dict = torch.load('models/model_1_state_dict.pth')
 model.load_state_dict(state_dict)
 
 model.eval()  # prepnutie do eval módu
@@ -18,7 +20,7 @@ model.eval()  # prepnutie do eval módu
 # Definícia transformácií pre vstupný obrázok
 preprocess = transform_data(gaus=False, pois=False, snp=False)
 
-img = Image.open('data/oxford-iiit-pet/images/great_pyrenees_147.jpg')
+img = Image.open('../data/oxford-iiit-pet/images/great_pyrenees_147.jpg')
 #img = Image.open('dog1.jpg')
 
 # Aplikácia transformácií
@@ -42,7 +44,7 @@ img_tensor = img_tensor.unsqueeze(0)
 
 # Inferencia: prechod obrázka cez model bez výpočtu gradientov
 with torch.no_grad():
-    output = model(img_tensor)
+    output = model(img_tensor).to(device)
 
 
 # vysledok
