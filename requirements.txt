@@ -5,3 +5,5 @@ torchaudio==2.6.0
 torchbearer==0.5.5
 torchmetrics==1.7.0
 matplotlib==3.9.2
+customtkinter==5.2.2
+pillow==11.1.0
