@@ -1,3 +1,7 @@
 *.png
 *.jpg
 *.xml
+
+# Ignore Python cache folders
+__pycache__/
+*.py[cod]
