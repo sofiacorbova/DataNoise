@@ -1,63 +1,69 @@
-import torch, torchvision, torchbearer
+import torch
+import torchvision
+import torchbearer
 from torchbearer import Trial
-from torchvision.models import ResNet18_Weights
-
+from torchvision.models import resnet18, ResNet18_Weights
 from my_transform import transform_data
-from data_loaders import get_data_loaders
+from data_loaders import get_data_loaders, OxfordPetsBinary
+import os
 
 torch.manual_seed(17)
 
-
-
-### Hyperparametre ###
+# Hyperparametre
 BATCH_SIZE = 512
 EPOCHS = 10
 LR = 0.001
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+# Definícia transformácií
+clean_transform = transform_data(gaus=False, pois=False, snp=False)
+gaussian_transform = transform_data(gaus=True, std=0.2, pois=False, snp=False)
+poisson_transform = transform_data(gaus=False, pois=True, lam=20, snp=False)
+saltpepper_transform = transform_data(gaus=False, pois=False, snp=True, salt_prob=0.03, pepper_prob=0.03)
+combined_transform = transform_data(gaus=True, pois=True, snp=True)
 
+# Datasety
+datasets = {
+    'clean': OxfordPetsBinary(root='./data', transform=clean_transform),
+    'gaussian': OxfordPetsBinary(root='./data', transform=gaussian_transform),
+    'poisson': OxfordPetsBinary(root='./data', transform=poisson_transform),
+    'saltpepper': OxfordPetsBinary(root='./data', transform=saltpepper_transform),
+    'combined': OxfordPetsBinary(root='./data', transform=combined_transform)
+}
 
-### MACKY_A_PSY dataset (XX tried, XX kusov XXxXX obrazkov) ###
-not_noisy_transform = transform_data(gaus=False, pois=False, snp=False)
-#noisy_transform = transform_data(gaus=True, pois=True, snp=True)
+# Funkcia na vytvorenie modelu
+def create_model():
+    model = resnet18(weights=ResNet18_Weights.DEFAULT)
+    model.fc = torch.nn.Linear(model.fc.in_features, 2)  # 2 triedy (Cat/Dog)
+    return model.to(device)
 
-data = torchvision.datasets.OxfordIIITPet(root='./data', download=True, target_types="binary-category", transform=not_noisy_transform)
-#noisy_data = torchvision.datasets.OxfordIIITPet(root='./data', download=True, target_types="binary-category", transform=noisy_transform)
-train_loader, val_loader, test_loader = get_data_loaders(data, train_size=0.8, val_size=0.1, test_size=0.1, batch_size=BATCH_SIZE)
+# Funkcia na tréning modelu
+def train_and_evaluate(dataset_name, dataset, model_save_path):
+    train_loader, val_loader, test_loader = get_data_loaders(dataset, batch_size=BATCH_SIZE)
 
-### MODEL ###
-model = torchvision.models.resnet18(weights=ResNet18_Weights.DEFAULT).to(device)
+    model = create_model()
+    criterion = torch.nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=LR)
 
-L = torch.nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=LR)
-
-
-
-def main() -> None:
-    """
-    Hlavná funkcia pre spustenie tréningu a testovania modelu.
-    """
-
-    # Inicializacia trialu
-    trial = Trial(model=model, 
-              optimizer=optimizer, 
-              criterion=L, 
-              metrics=['loss', 'accuracy'],
-              callbacks=[torchbearer.callbacks.EarlyStopping(patience=5)],   
-            ).to(device)
+    trial = Trial(model=model, optimizer=optimizer, criterion=criterion, metrics=['loss', 'accuracy'],
+                  callbacks=[torchbearer.callbacks.EarlyStopping(patience=5)]).to(device)
     trial.with_generators(train_generator=train_loader, val_generator=val_loader, test_generator=test_loader)
 
-    # Trenovanie a validacia
-    print("Spúšťam tréning...")
+    print(f"🔵 Trénujem model na '{dataset_name}' dátach...")
     trial.run(epochs=EPOCHS)
+    
+    print(f"✅ Výsledky '{dataset_name}' modelu na testovacích dátach:")
+    results = trial.evaluate(data_key=torchbearer.TEST_DATA)
+    print(results)
 
-    # Testovanie
-    print("Spúšťam testovanie...")
-    print(trial.evaluate(data_key=torchbearer.TEST_DATA))
+    os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
+    torch.save(model.state_dict(), model_save_path)
+    print(f"💾 Model uložený do {model_save_path}\n")
 
-    # Ulozenie modelu
-    print("Ukladám model...")
-    torch.save(model.state_dict(), 'DataNoise/models/model_1_state_dict.pth')
+# Hlavná funkcia
+def main():
+    for name, dataset in datasets.items():
+        train_and_evaluate(name, dataset, f"models/model_{name}.pth")
 
-if __name__ == '__main__':
-  main()
+if __name__ == "__main__":
+    main()
