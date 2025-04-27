@@ -24,29 +24,33 @@ class OxfordPetsBinary(Dataset):
     def __init__(self, root, transform=None):
         self.root = root
         self.transform = transform
-        
-        self.dataset = OxfordIIITPet(root=root, download=True, target_types="category")
-        
+
+        self.dataset = OxfordIIITPet(root=root, download=False, target_types="category")
+
         self.data = []
         list_path = os.path.join(root, 'oxford-iiit-pet', 'annotations', 'list.txt')
         with open(list_path, 'r') as f:
             lines = f.readlines()[6:]
-        
+
         for line in lines:
             parts = line.strip().split()
             img_name = parts[0] + '.jpg'
-            class_label = int(parts[2])
-            binary_label = 0 if class_label == 2 else 1  # 0=Cat, 1=Dog
+            first_letter = img_name[0]
+            if first_letter.isupper():
+                binary_label = 0  # Cat
+            else:
+                binary_label = 1  # Dog
+
             self.data.append((img_name, binary_label))
-    
+
     def __len__(self):
         return len(self.data)
-    
+
     def __getitem__(self, idx):
         img_name, label = self.data[idx]
         img_path = os.path.join(self.root, 'oxford-iiit-pet', 'images', img_name)
 
-        image = Image.open(img_path).convert("RGB")  # načítať ako PIL image
+        image = Image.open(img_path).convert("RGB")
         if self.transform:
             image = self.transform(image)
 
