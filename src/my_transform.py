@@ -1,112 +1,55 @@
-# Modul na definovanie transformácií pre obrázky
-import torch, torchvision
-import torchvision.transforms.v2 as transforms
+from torchvision import transforms
+import torchvision.transforms.functional as F
+import random
+import torch
 
-
-def add_gaussian_noise(tensor: torch.Tensor, mean: float|int=0.0, std: float|int=0.1) -> torch.Tensor:
-    """
-    Pridá Gaussov šum do vstupného tensoru (obrázku).
-    
-    Vstupy:
-        tensor - vstupný tensor (obrázok) s hodnotami v rozsahu [0, 1]
-        mean - stredná hodnota Gaussovho rozdelenia 
-                - Určuje, okolo akej hodnoty sa budú sústreďovať náhodné odchýlky, ktoré pridávame do obrázku. 
-                Ak je hodnota 0, znamená to, že šum nemá systematický posun hore alebo dole.
-        std (σ) - smerodajná odchýlka Gaussovho rozdelenia 
-                - určuje, ako rozptýlené budú hodnoty šumu okolo strednej hodnoty (mean). 
-                Vyššia hodnota std znamená, že do obrázka pridávame výraznejší a "širší" šum, 
-                zatiaľ čo nižšia hodnota spôsobí jemnejší šum. 
-
-    Výstup:
-        Tensor (obrázok) s pridaným Gaussovým šumom.
-    """
-    noise = torch.randn(tensor.size()) * std + mean
-    noisy_tensor = tensor + noise
-    return noisy_tensor
-
-
-def add_poisson_noise(tensor: torch.Tensor, lam: float|int=30) -> torch.Tensor:
-    """
-    Pridá Poissonov šum do vstupného tensoru (obrázku). Na simuláciu Poissonovho šumu v rozsahu [0, 1] najprv
-    tensor vynásobíme lam, aby sme získali "počet" fotónov, potom použijeme torch.poisson() a výsledok normalizujeme späť.
-    
-    Vstupy:
-      tensor - vstupný tensor (obrázok) s hodnotami v rozsahu [0, 1]
-      lam (lambda λ) - parameter pre škálovanie; vyššia hodnota znamená menej výrazný šum, nižšia viac výrazný šum
-            - Najprv sa vstupný obrázok, ktorý má hodnoty v rozsahu [0, 1], vynásobí hodnotou lambda, čím sa simuluje počet fotónov, 
-            ktorý by mohol byť zaznamenaný. Potom sa na tieto "počty" aplikuje Poissonovo rozdelenie, ktoré vygeneruje náhodné hodnoty, 
-            a následne sa výsledok normalizuje späť delením lambdou. Vyššia hodnota lambdy znamená, že simulovaný počet fotónov je väčší, 
-            čo vedie k menej výraznému šumu.
-
-    Výstup:
-      Tensor (obrázok) s pridaným Poissonovým šumom.
-    """
-
-    tensor = torch.clamp(tensor, min=0)
-    noisy_tensor = torch.poisson(tensor * lam) / lam
-    return noisy_tensor
-
-
-def add_salt_and_pepper_noise(tensor: torch.Tensor, salt_prob: float|int=0.01, pepper_prob: float|int=0.01) -> torch.Tensor:
-    """
-    Pridá salt-and-pepper šum do vstupného tensoru (obrázku). 
-    Salt-and-pepper šum náhodne nastaví niektoré pixely na maximálnu hodnotu (soľ) 
-    alebo minimálnu hodnotu (peper) v obrázku. Táto funkcia modifikuje vstupný tensor 
-    aplikovaním šumu nezávisle na každý kanál.
-
-    Vstupy:
-        tensor - Vstupný tensor (obrázok). 
-        salt_prob - Pravdepodobnosť, že pixel bude nastavený na maximálnu hodnotu (soľ). Predvolená hodnota je 0.01.
-        pepper_prob - Pravdepodobnosť, že pixel bude nastavený na minimálnu hodnotu (korenie). Predvolená hodnota je 0.01.
-    Výstup:
-        Tensor (obrázok) s pridaným salt-and-pepper šumom.
-    """
-
-    noisy_tensor = tensor.clone()
-    num_channels, height, width = noisy_tensor.shape
-    # Vytvorenie masky pre soľ
-    salt_mask = torch.rand((height, width)) < salt_prob
-    # Vytvorenie masky pre peper
-    pepper_mask = torch.rand((height, width)) < pepper_prob
-    
-    for color_channel in range(num_channels):
-        noisy_tensor[color_channel][salt_mask] = 1.0
-        noisy_tensor[color_channel][pepper_mask] = 0.0
-    return noisy_tensor
-
-
-def transform_data(gaus: bool=False, mean: float=0.0, std: float=0.1, 
-                    pois: bool=False, lam: int=30, 
-                    snp: bool=False, salt_prob: float=0.01, pepper_prob: float=0.01) -> transforms.Compose:
-    """
-    Funkcia na definovanie transformácií pre obrázky - ako sa majú obrázky spracovať pred zadaním do modelu.
-
-    Vstupy:
-        gaus - či pridať Gaussov šum
-        pois - či pridať Poissonov šum
-        snp - či pridať salt-and-pepper šum
-    Výstup:
-        transforms.Compose - zložené transformácie pre obrázky
-    """
-    
-    my_transform = transforms.Compose([ 
-        # Nejaké predspracovanie obrázkov
-
-        torchvision.transforms.Resize((224, 224)), # kvoli resnet18
+class AddGaussianNoise(object):
+    def __init__(self, mean=0., std=1.):
+        self.mean = mean
+        self.std = std
         
-                #torchvision.transforms.RandomHorizontalFlip(),
-                #transforms.Grayscale(num_output_channels=3), # konverzia sedotonoveho obrazka na RGB kvoli resnet18
-        
-        torchvision.transforms.ToTensor(),
-        
-                #torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], # nejake RGB normalizovanie
-                #                                    std=[0.229, 0.224, 0.225]), 
-                #torchvision.transforms.Normalize(mean=[0.1307], std=[0.3081]), # nejake sedotonove normalizovanie
-        
-        # Pridanie rôznych typov a intenzít šumu
-        transforms.Lambda(lambda x: add_gaussian_noise(x, mean=mean, std=std)) if gaus else transforms.Lambda(lambda x: x),
-        transforms.Lambda(lambda x: add_poisson_noise(x, lam=lam)) if pois else transforms.Lambda(lambda x: x),
-        transforms.Lambda(lambda x: add_salt_and_pepper_noise(x, salt_prob=salt_prob, pepper_prob=pepper_prob)) if snp else transforms.Lambda(lambda x: x)
+    def __call__(self, tensor):
+        return tensor + torch.randn(tensor.size()) * self.std + self.mean
+
+class AddSaltPepperNoise(object):
+    def __init__(self, amount=0.01):
+        self.amount = amount
+
+    def __call__(self, tensor):
+        noisy = tensor.clone()
+        num_salt = int(self.amount * tensor.nelement())
+        coords = [torch.randint(0, i - 1, (num_salt,)) for i in tensor.shape]
+        noisy[tuple(coords)] = 1
+
+        num_pepper = int(self.amount * tensor.nelement())
+        coords = [torch.randint(0, i - 1, (num_pepper,)) for i in tensor.shape]
+        noisy[tuple(coords)] = 0
+
+        return noisy
+
+class AddPoissonNoise(object):
+    def __call__(self, tensor):
+        # Prenormovanie do [0,1]
+        tensor = (tensor + 1.0) / 2.0  # pôvodne bolo -1..1 -> teraz 0..1
+        vals = len(torch.unique(tensor))
+        vals = 2 ** torch.ceil(torch.log2(torch.tensor(vals, dtype=torch.float32)))
+        noisy = torch.poisson(tensor * vals) / float(vals)
+        noisy = noisy * 2.0 - 1.0  # vrátime späť do -1..1
+        return noisy
+
+
+def transform_data(gaus=False, pois=False, snp=False, std=0.1):
+    noise_transforms = []
+    if gaus:
+        noise_transforms.append(AddGaussianNoise(std=std))
+    if pois:
+        noise_transforms.append(AddPoissonNoise())
+    if snp:
+        noise_transforms.append(AddSaltPepperNoise(amount=0.01))
+
+    return transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        *noise_transforms,  # Aplikuj šumy, ak sú vybraté
+        transforms.Normalize((0.5,), (0.5,))
     ])
-
-    return my_transform

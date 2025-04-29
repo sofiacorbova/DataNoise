@@ -1,69 +1,70 @@
+# src/main.py
+
+import os
 import torch
-import torchvision
+import torch.nn as nn
+import torch.optim as optim
+from torchvision.models import resnet34, ResNet34_Weights
+from torch.utils.data import random_split, DataLoader
+from data_loaders import OxfordPetsMulticlass
+from my_transform import transform_data
+from torchbearer.callbacks import EarlyStopping
 import torchbearer
 from torchbearer import Trial
-from torchvision.models import resnet18, ResNet18_Weights
-from my_transform import transform_data
-from data_loaders import get_data_loaders, OxfordPetsBinary
-import os
 
-torch.manual_seed(17)
-
-# Hyperparametre
-BATCH_SIZE = 512
-EPOCHS = 10
-LR = 0.001
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# Definícia transformácií
-clean_transform = transform_data(gaus=False, pois=False, snp=False)
-gaussian_transform = transform_data(gaus=True, std=0.2, pois=False, snp=False)
-poisson_transform = transform_data(gaus=False, pois=True, lam=20, snp=False)
-saltpepper_transform = transform_data(gaus=False, pois=False, snp=True, salt_prob=0.03, pepper_prob=0.03)
-combined_transform = transform_data(gaus=True, pois=True, snp=True)
+# Vytvorenie modelu pre multiclass
 
-# Datasety
-datasets = {
-    'clean': OxfordPetsBinary(root='./data', transform=clean_transform),
-    'gaussian': OxfordPetsBinary(root='./data', transform=gaussian_transform),
-    'poisson': OxfordPetsBinary(root='./data', transform=poisson_transform),
-    'saltpepper': OxfordPetsBinary(root='./data', transform=saltpepper_transform),
-    'combined': OxfordPetsBinary(root='./data', transform=combined_transform)
-}
-
-# Funkcia na vytvorenie modelu
-def create_model():
-    model = resnet18(weights=ResNet18_Weights.DEFAULT)
-    model.fc = torch.nn.Linear(model.fc.in_features, 2)  # 2 triedy (Cat/Dog)
+def create_model(num_classes=37):
+    model = resnet34(weights=ResNet34_Weights.DEFAULT)
+    model.fc = nn.Sequential(
+        nn.Dropout(0.5),
+        nn.Linear(model.fc.in_features, num_classes)
+    )
     return model.to(device)
 
-# Funkcia na tréning modelu
-def train_and_evaluate(dataset_name, dataset, model_save_path):
-    train_loader, val_loader, test_loader = get_data_loaders(dataset, batch_size=BATCH_SIZE)
+# Trenovanie modelu
 
-    model = create_model()
-    criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+def train_and_evaluate(dataset_name, dataset, model_save_path, epochs=40, batch_size=128):
+    train_size = int(0.8 * len(dataset))
+    val_size = int(0.1 * len(dataset))
+    test_size = len(dataset) - train_size - val_size
+    train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
 
-    trial = Trial(model=model, optimizer=optimizer, criterion=criterion, metrics=['loss', 'accuracy'],
-                  callbacks=[torchbearer.callbacks.EarlyStopping(patience=5)]).to(device)
-    trial.with_generators(train_generator=train_loader, val_generator=val_loader, test_generator=test_loader)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-    print(f"🔵 Trénujem model na '{dataset_name}' dátach...")
-    trial.run(epochs=EPOCHS)
-    
-    print(f"✅ Výsledky '{dataset_name}' modelu na testovacích dátach:")
-    results = trial.evaluate(data_key=torchbearer.TEST_DATA)
-    print(results)
+    model = create_model(num_classes=len(dataset.get_class_names()))
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=3)
+
+    early_stopping = EarlyStopping(monitor='val_loss', patience=5)
+
+    trial = Trial(model, optimizer, criterion, metrics=['loss', 'accuracy'], callbacks=[early_stopping]).to(device)
+    trial.with_generators(train_loader, val_loader, test_loader)
+
+    print(f"\n🔵 Trénujem model '{dataset_name}'...")
+    trial.run(epochs=epochs)
+
+    print(f"✅ Vyhodnotenie '{dataset_name}' na testovacej sade:")
+    trial.evaluate(data_key=torchbearer.TEST_DATA)
 
     os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
     torch.save(model.state_dict(), model_save_path)
-    print(f"💾 Model uložený do {model_save_path}\n")
+    print(f"💾 Model uložený: {model_save_path}\n")
 
-# Hlavná funkcia
-def main():
-    for name, dataset in datasets.items():
-        train_and_evaluate(name, dataset, f"models/model_{name}.pth")
+# --- Hlavný beh programu ---
 
 if __name__ == "__main__":
-    main()
+    clean_transform = transform_data()
+
+    dataset = OxfordPetsMulticlass(root='./data', transform=clean_transform)
+
+    model_path = "models/model_multiclass_resnet34.pth"
+    print(f"🛠️ Trénujem model ResNet34 na viac-triednu klasifikáciu")
+    train_and_evaluate('multiclass', dataset, model_path, epochs=40, batch_size=128)
+
+    print("\n✅ Tréning multiclass ResNet34 modelu hotový!")

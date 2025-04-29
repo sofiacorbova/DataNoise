@@ -1,48 +1,51 @@
+# src/visualize_results.py
+
 import torch
 import torchvision
 import matplotlib.pyplot as plt
 from torchvision.transforms import ToPILImage
-from my_transform import transform_data, add_gaussian_noise, add_poisson_noise, add_salt_and_pepper_noise
-from data_loaders import OxfordPetsBinary
-from torchvision.models import resnet18, ResNet18_Weights
+from my_transform import transform_data, AddGaussianNoise, AddPoissonNoise, AddSaltPepperNoise
+from data_loaders import OxfordPetsMulticlass
+from torchvision.models import resnet34, ResNet34_Weights
 import os
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# Načítanie modelu
-def load_model(model_path):
-    model = resnet18(weights=ResNet18_Weights.DEFAULT)
-    model.fc = torch.nn.Linear(model.fc.in_features, 2)
+def recover_image(tensor):
+    return (tensor + 1.0) / 2.0
+
+# Load model
+def load_model(model_path, num_classes):
+    model = resnet34(weights=ResNet34_Weights.DEFAULT)
+    model.fc = torch.nn.Sequential(
+        torch.nn.Dropout(0.5),
+        torch.nn.Linear(model.fc.in_features, num_classes)
+    )
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()
     return model.to(device)
 
-# Predikcia obrázka
-def predict_image(model, img_tensor):
+# Predict top-3 classes
+
+def predict_topk(model, img_tensor, k=3):
     img_tensor = img_tensor.unsqueeze(0).to(device)
     with torch.no_grad():
         output = model(img_tensor)
     probabilities = torch.nn.functional.softmax(output, dim=1)
-    confidence, predicted = torch.max(probabilities, dim=1)
-    return predicted.item(), confidence.item()
+    confidences, predictions = torch.topk(probabilities, k)
+    return predictions.squeeze(0).tolist(), confidences.squeeze(0).tolist()
 
-# Vizualizácia výsledkov
+# Visualize predictions
+
 def show_examples(num_examples=5):
-    class_names = ["Cat", "Dog"]
     to_pil = ToPILImage()
 
-    # Načítanie všetkých modelov
-    model_paths = {
-        'clean': 'models/model_clean.pth',
-        'gaussian': 'models/model_gaussian.pth',
-        'poisson': 'models/model_poisson.pth',
-        'saltpepper': 'models/model_saltpepper.pth',
-        'combined': 'models/model_combined.pth'
-    }
-    models = {name: load_model(path) for name, path in model_paths.items()}
+    model_path = 'models/model_multiclass_resnet34.pth'
 
-    # Dataset (čisté obrázky)
-    dataset = OxfordPetsBinary(root='./data', transform=transform_data(gaus=False, pois=False, snp=False))
+    dataset = OxfordPetsMulticlass(root='./data', transform=transform_data(gaus=False, pois=False, snp=False))
+    class_names = dataset.get_class_names()
+
+    model = load_model(model_path, num_classes=len(class_names))
 
     indices = torch.randperm(len(dataset))[:num_examples]
 
@@ -52,38 +55,36 @@ def show_examples(num_examples=5):
         img, true_label = dataset[idx]
         img = img.to('cpu')
 
-        fig, axes = plt.subplots(2, 6, figsize=(25, 8))
+        fig, axes = plt.subplots(2, 4, figsize=(24, 10))
 
-        # Varianty obrázka: čistý + šumy
         variants = [
             ('Original', img),
-            ('Gaussian Noise', add_gaussian_noise(img, mean=0.0, std=0.2)),
-            ('Poisson Noise', add_poisson_noise(img, lam=20)),
-            ('Salt & Pepper', add_salt_and_pepper_noise(img, salt_prob=0.05, pepper_prob=0.05)),
-            ('Combined Noise', add_salt_and_pepper_noise(add_poisson_noise(add_gaussian_noise(img, std=0.2), lam=20), salt_prob=0.05, pepper_prob=0.05))
+            ('Gaussian Noise', AddGaussianNoise(mean=0.0, std=0.2)(img)),
+            ('Poisson Noise', AddPoissonNoise()((img + 1.0)/2.0) * 2.0 - 1.0),
+            ('Salt & Pepper', AddSaltPepperNoise(amount=0.05)(img))
         ]
 
         for i, (title, variant_img) in enumerate(variants):
-            axes[0, i].imshow(to_pil(variant_img))
+            axes[0, i].imshow(to_pil(recover_image(variant_img)))
             axes[0, i].set_title(title, fontsize=14)
             axes[0, i].axis('off')
 
-            pred_text = ""
-            for model_name, model in models.items():
-                pred, conf = predict_image(model, variant_img)
-                pred_text += f"{model_name}: {class_names[pred]} ({conf*100:.1f}%)\n"
+            preds, confs = predict_topk(model, variant_img, k=3)
 
-            axes[1, i].text(0.5, 0.5, pred_text, fontsize=10, ha='center', va='center')
+            text = f"True: {class_names[true_label]}\n"
+            for j in range(len(preds)):
+                text += f"{j+1}. {class_names[preds[j]]} ({confs[j]*100:.1f}%)\n"
+
+            axes[1, i].text(0.5, 0.5, text.strip(), fontsize=10, ha='center', va='center')
             axes[1, i].axis('off')
 
-        axes[0, 5].remove()
-        axes[1, 5].remove()
-
-        plt.suptitle(f"True Label: {class_names[true_label]}", fontsize=16)
+        plt.suptitle(f"Predictions for Sample {idx}", fontsize=20)
         plt.tight_layout()
 
-        plt.savefig(f"results/example_{idx}.png")
-        plt.show()
+        save_path = f"results/example_{idx}.png"
+        plt.savefig(save_path)
+        plt.close(fig)
+        print(f"✅ Obrázok uložený: {save_path}")
 
 if __name__ == "__main__":
     show_examples(num_examples=5)
