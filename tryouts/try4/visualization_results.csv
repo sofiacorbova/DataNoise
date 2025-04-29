@@ -1,0 +1,21 @@
+ImageIndex,Variant,TrueLabel,Top1Prediction,Top1Confidence,Top2Prediction,Top2Confidence,Top3Prediction,Top3Confidence,Correct
+6772,Original,sphynx,sphynx,93.7860906124115,yorkshire_terrier,0.5024564452469349,american_bulldog,0.46411678194999695,1
+6772,Gaussian Noise,sphynx,sphynx,32.70231485366821,american_bulldog,6.936776638031006,newfoundland,6.550020724534988,1
+6772,Poisson Noise,sphynx,wheaten_terrier,51.16918683052063,beagle,11.520136892795563,abyssinian,5.775569379329681,0
+6772,Salt & Pepper,sphynx,sphynx,93.7860906124115,yorkshire_terrier,0.5024564452469349,american_bulldog,0.46411678194999695,1
+2887,Original,german_shorthaired,sphynx,32.315829396247864,english_setter,30.82023561000824,german_shorthaired,6.878821551799774,0
+2887,Gaussian Noise,german_shorthaired,wheaten_terrier,78.8640558719635,english_setter,11.230258643627167,german_shorthaired,1.7622055485844612,0
+2887,Poisson Noise,german_shorthaired,wheaten_terrier,92.2023057937622,german_shorthaired,2.236042357981205,beagle,1.2791539542376995,0
+2887,Salt & Pepper,german_shorthaired,sphynx,32.315829396247864,english_setter,30.82023561000824,german_shorthaired,6.878821551799774,0
+2897,Original,german_shorthaired,german_shorthaired,78.03911566734314,english_setter,8.451227843761444,beagle,4.938671737909317,1
+2897,Gaussian Noise,german_shorthaired,english_setter,39.38133418560028,german_shorthaired,34.302809834480286,wheaten_terrier,7.767169177532196,0
+2897,Poisson Noise,german_shorthaired,wheaten_terrier,94.24551129341125,beagle,0.9502341039478779,havanese,0.570162246003747,0
+2897,Salt & Pepper,german_shorthaired,german_shorthaired,78.03911566734314,english_setter,8.451227843761444,beagle,4.938671737909317,1
+6289,Original,shiba_inu,shiba_inu,90.700364112854,ragdoll,0.6672532297670841,bengal,0.4127714317291975,1
+6289,Gaussian Noise,shiba_inu,shiba_inu,88.38611841201782,ragdoll,2.130238339304924,pomeranian,0.5304869264364243,1
+6289,Poisson Noise,shiba_inu,wheaten_terrier,65.01769423484802,beagle,5.536898598074913,great_pyrenees,4.437486827373505,0
+6289,Salt & Pepper,shiba_inu,shiba_inu,90.700364112854,ragdoll,0.6672532297670841,bengal,0.4127714317291975,1
+757,Original,basset_hound,basset_hound,93.30715537071228,beagle,0.3735499456524849,sphynx,0.35485601983964443,1
+757,Gaussian Noise,basset_hound,basset_hound,93.80303025245667,sphynx,0.3503953106701374,beagle,0.3464567707851529,1
+757,Poisson Noise,basset_hound,wheaten_terrier,85.25009751319885,english_setter,3.4331846982240677,beagle,2.0590249449014664,0
+757,Salt & Pepper,basset_hound,basset_hound,93.30715537071228,beagle,0.3735499456524849,sphynx,0.35485601983964443,1
