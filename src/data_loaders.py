@@ -1,45 +1,59 @@
-# src/data_loaders.py
-
+# === src/data_loaders.py ===
 import os
+from PIL import Image
 from torch.utils.data import Dataset
 from torchvision.datasets import OxfordIIITPet
-from torchvision.io import read_image
-from PIL import Image
+from sklearn.model_selection import train_test_split
 
 class OxfordPetsMulticlass(Dataset):
-    def __init__(self, root, transform=None):
+    def __init__(self, root, transform=None, split='train'):
         self.root = root
         self.transform = transform
-
-        self.dataset = OxfordIIITPet(root=root, download=False, target_types='category')
-
-        # Priprav mapovanie mena plemena na cislo
-        self.class_names = sorted(list(set([
-            os.path.splitext(file)[0].rsplit('_', 1)[0].lower() for file in os.listdir(os.path.join(root, 'oxford-iiit-pet', 'images'))
-        ])))
-        self.class_to_idx = {class_name: idx for idx, class_name in enumerate(self.class_names)}
-
-        # Nacitaj obrazky a labely
+        self.split = split  # 'train', 'val', 'test'
         self.data = []
-        images_dir = os.path.join(root, 'oxford-iiit-pet', 'images')
-        for img_file in os.listdir(images_dir):
-            if img_file.endswith('.jpg'):
-                breed_name = img_file.rsplit('_', 1)[0].lower()
-                label = self.class_to_idx[breed_name]
-                self.data.append((img_file, label))
+        self.class_to_idx = {}
+
+        self._prepare_data()
+
+    def _prepare_data(self):
+        image_dir = os.path.join(self.root, 'oxford-iiit-pet', 'images')
+        all_images = [f for f in os.listdir(image_dir) if f.endswith('.jpg')]
+
+        # Všetky triedy (plemená)
+        class_names = sorted(list(set(fname.rsplit('_', 1)[0].lower() for fname in all_images)))
+        self.class_to_idx = {name: idx for idx, name in enumerate(class_names)}
+
+        images_by_class = {name: [] for name in class_names}
+        for fname in all_images:
+            class_name = fname.rsplit('_', 1)[0].lower()
+            images_by_class[class_name].append(fname)
+
+        for class_name, images in images_by_class.items():
+            images.sort()
+            train_imgs, test_imgs = train_test_split(images, test_size=0.2, random_state=42)
+            val_imgs, test_imgs = train_test_split(test_imgs, test_size=0.5, random_state=42)
+
+            if self.split == 'train':
+                selected = train_imgs
+            elif self.split == 'val':
+                selected = val_imgs
+            else:
+                selected = test_imgs
+
+            for img in selected:
+                path = os.path.join(image_dir, img)
+                label = self.class_to_idx[class_name]
+                self.data.append((path, label))
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        img_name, label = self.data[idx]
-        img_path = os.path.join(self.root, 'oxford-iiit-pet', 'images', img_name)
-
-        image = Image.open(img_path).convert("RGB")
+        path, label = self.data[idx]
+        image = Image.open(path).convert("RGB")
         if self.transform:
             image = self.transform(image)
-
         return image, label
 
     def get_class_names(self):
-        return self.class_names
+        return list(self.class_to_idx.keys())

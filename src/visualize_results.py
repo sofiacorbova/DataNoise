@@ -1,113 +1,133 @@
-# src/visualize_results.py
-
+# === src/visualize_results.py ===
 import torch
 import torchvision
 import matplotlib.pyplot as plt
-from torchvision.transforms import ToPILImage
 import pandas as pd
-from my_transform import transform_data, AddGaussianNoise, AddPoissonNoise, AddSaltPepperNoise
+from torchvision.transforms import ToPILImage
 from data_loaders import OxfordPetsMulticlass
+from my_transform import AddGaussianNoise, AddPoissonNoise, AddSaltPepperNoise
 from torchvision.models import resnet34, ResNet34_Weights
 import os
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def recover_image(tensor):
-    return (tensor + 1.0) / 2.0
+def visualization_transform():
+    return torchvision.transforms.Compose([
+        torchvision.transforms.Resize((224, 224)),
+        torchvision.transforms.ToTensor()
+    ])
+    
 
-# Load model
 def load_model(model_path, num_classes):
+    checkpoint = torch.load(model_path, map_location=device)
     model = resnet34(weights=ResNet34_Weights.DEFAULT)
     model.fc = torch.nn.Sequential(
         torch.nn.Dropout(0.5),
         torch.nn.Linear(model.fc.in_features, num_classes)
     )
-    model.load_state_dict(torch.load(model_path, map_location=device))
+    model.load_state_dict(checkpoint['model_state'])
     model.eval()
-    return model.to(device)
+    return model.to(device), checkpoint.get('train_noise_config', {})
 
-# Predict top-k classes
-def predict_topk(model, img_tensor, k=3):
+def predict_image(model, img_tensor):
     img_tensor = img_tensor.unsqueeze(0).to(device)
     with torch.no_grad():
         output = model(img_tensor)
-    probabilities = torch.nn.functional.softmax(output, dim=1)
-    confidences, predictions = torch.topk(probabilities, k)
-    return predictions.squeeze(0).tolist(), confidences.squeeze(0).tolist()
+    probs = torch.nn.functional.softmax(output, dim=1).squeeze()
+    sorted_probs, indices = torch.sort(probs, descending=True)
+    return indices.tolist(), probs[indices].tolist()
 
-# Visualize predictions and export to CSV
 def show_examples(num_examples=5):
     to_pil = ToPILImage()
-
     model_path = 'models/model_multiclass_resnet34.pth'
 
-    dataset = OxfordPetsMulticlass(root='./data', transform=transform_data(gaus=False, pois=False, snp=False))
+    dataset = OxfordPetsMulticlass(root='./data', transform=visualization_transform())
     class_names = dataset.get_class_names()
 
-    model = load_model(model_path, num_classes=len(class_names))
-
-    indices = torch.randperm(len(dataset))[:num_examples]
+    # === Načítaj model + šum z tréningu ===
+    checkpoint = torch.load(model_path, map_location=device)
+    train_noise_config = checkpoint.get('train_noise_config', {})
+    model = resnet34(weights=ResNet34_Weights.DEFAULT)
+    model.fc = torch.nn.Sequential(
+        torch.nn.Dropout(0.5),
+        torch.nn.Linear(model.fc.in_features, len(class_names))
+    )
+    model.load_state_dict(checkpoint['model_state'])
+    model.eval()
+    model = model.to(device)
 
     os.makedirs("results", exist_ok=True)
 
-    csv_data = []
+    results_file = "results/visualization_results.csv"
+    all_rows = []
+
+    indices = torch.randperm(len(dataset))[:num_examples]
 
     for idx in indices:
         img, true_label = dataset[idx]
         img = img.to('cpu')
 
-        fig, axes = plt.subplots(2, 4, figsize=(24, 10))
+        fig, axes = plt.subplots(2, 5, figsize=(30, 10))  # Horný riadok: obrázky, spodný riadok: texty
 
-        variants = [
-            ('Original', img),
-            ('Gaussian Noise', AddGaussianNoise(mean=0.0, std=0.2)(img)),
-            ('Poisson Noise', AddPoissonNoise()((img + 1.0)/2.0) * 2.0 - 1.0),
-            ('Salt & Pepper', AddSaltPepperNoise(amount=0.05)(img))
+        variant_imgs = [
+            ('Original', img.clone()),
+            ('Gaussian Noise', AddGaussianNoise(std=0.05)(img.clone())),
+            ('Poisson Noise', AddPoissonNoise()(img.clone())),
+            ('Salt & Pepper', AddSaltPepperNoise(amount=0.03)(img.clone())),
+            ('Combined Noise', AddSaltPepperNoise(amount=0.03)(AddPoissonNoise()(AddGaussianNoise(std=0.1)(img.clone()))))
         ]
 
-        for i, (title, variant_img) in enumerate(variants):
-            axes[0, i].imshow(to_pil(recover_image(variant_img)))
-            axes[0, i].set_title(title, fontsize=14)
+        train_noise_str = ", ".join([k for k, v in train_noise_config.items() if v]) or "Clean"
+
+        for i, (variant_name, variant_img) in enumerate(variant_imgs):
+            # Horný riadok obrázky
+            axes[0, i].imshow(to_pil(variant_img))
+            axes[0, i].set_title(variant_name, fontsize=14)
             axes[0, i].axis('off')
 
-            preds, confs = predict_topk(model, variant_img, k=3)
+            preds, confs = predict_image(model, variant_img)
+            top_pred = preds[0]
+            top_conf = confs[0]
+            correct = top_pred == true_label
+            color = 'green' if correct else 'red'
 
-            # Save to CSV
-            csv_data.append({
-                'ImageIndex': idx.item() if torch.is_tensor(idx) else idx,
-                'Variant': title,
-                'TrueLabel': class_names[true_label],
-                'Top1Prediction': class_names[preds[0]],
-                'Top1Confidence': confs[0]*100,
-                'Top2Prediction': class_names[preds[1]],
-                'Top2Confidence': confs[1]*100,
-                'Top3Prediction': class_names[preds[2]],
-                'Top3Confidence': confs[2]*100,
-                'Correct': int(preds[0] == true_label)
-            })
+            pred_label = class_names[top_pred]
+            top3_text = "\n".join([
+                f"{class_names[p]} ({c*100:.1f}%)" for p, c in zip(preds[:3], confs[:3])
+            ])
 
-            # Text formatting with color
-            color = 'green' if preds[0] == true_label else 'red'
-
-            text = f"True: {class_names[true_label]}\n"
-            for j in range(len(preds)):
-                text += f"{j+1}. {class_names[preds[j]]} ({confs[j]*100:.1f}%)\n"
-
-            axes[1, i].text(0.5, 0.5, text.strip(), fontsize=10, ha='center', va='center', color=color)
+            # Spodný riadok text
+            text = f"Pred: {pred_label} ({top_conf*100:.1f}%)\n{top3_text}"
+            axes[1, i].text(0.5, 0.5, text, fontsize=12, color=color, ha='center', va='center', wrap=True)
             axes[1, i].axis('off')
 
-        plt.suptitle(f"Predictions for Sample {idx}", fontsize=20)
+            row = {
+                "Image_Index": idx.item(),
+                "Variant": variant_name,
+                "True_Label": class_names[true_label],
+                "Predicted_Label": pred_label,
+                "Confidence": f"{top_conf*100:.2f}%",
+                "Top3_Predictions": "; ".join([f"{class_names[p]} ({c*100:.1f}%)" for p, c in zip(preds[:3], confs[:3])]),
+                "Train_Noise": train_noise_str,
+                "Test_Noise": variant_name
+            }
+            all_rows.append(row)
+
+        plt.suptitle(f"🖼️ True Label: {class_names[true_label]} | Trained on: {train_noise_str}", fontsize=20)
         plt.tight_layout()
-
-        save_path = f"results/example_{idx}.png"
-        plt.savefig(save_path)
+        plt.savefig(f"results/example_{idx}.png")
         plt.close(fig)
-        print(f"✅ Obrázok uložený: {save_path}")
+        print(f"✅ Obrázok uložený: results/example_{idx}.png")
 
-    # Save CSV results
-    csv_df = pd.DataFrame(csv_data)
-    csv_df.to_csv("results/visualization_results.csv", index=False)
-    print("\n✅ CSV s vysledkami ulozeny: results/visualization_results.csv")
+    # CSV APPEND
+    if os.path.exists(results_file):
+        old = pd.read_csv(results_file)
+        df = pd.concat([old, pd.DataFrame(all_rows)], ignore_index=True)
+    else:
+        df = pd.DataFrame(all_rows)
+
+    df.to_csv(results_file, index=False)
+    print(f"📄 Výsledky uložené v {results_file}")
 
 if __name__ == "__main__":
     show_examples(num_examples=5)
