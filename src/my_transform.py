@@ -24,8 +24,6 @@ class AddPoissonNoise(torch.nn.Module):
         noisy = noisy * 2.0 - 1.0  # späť na [-1, 1]
         return torch.clamp(noisy, -1.0, 1.0)
 
-
-
 class AddSaltPepperNoise(torch.nn.Module):
     def __init__(self, amount=0.03):
         super().__init__()
@@ -59,11 +57,15 @@ def transform_data(gaus=False, pois=False, snp=False, train=False):
         transforms.insert(3, T.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.05))
         transforms.insert(4, T.RandomResizedCrop(size=224, scale=(0.9, 1.0)))
 
-    if gaus:
-        transforms.append(AddGaussianNoise())
-    if pois:
-        transforms.append(AddPoissonNoise())
-    if snp:
-        transforms.append(AddSaltPepperNoise())
+        noise_transforms = []
+        if gaus:
+            noise_transforms.append(AddGaussianNoise(std=0.05))
+        if pois:
+            noise_transforms.append(AddPoissonNoise())
+        if snp:
+            noise_transforms.append(AddSaltPepperNoise(amount=0.03))
+
+        if noise_transforms:
+            transforms.append(T.RandomApply(noise_transforms, p=0.3))
 
     return T.Compose(transforms)

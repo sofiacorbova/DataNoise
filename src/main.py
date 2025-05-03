@@ -1,4 +1,4 @@
-# === src/main.py (curriculum learning 150 epóch + CSV logging) ===
+# === src/main.py (curriculum learning 200 epóch + CSV logging + re-eval) ===
 
 import os
 import torch
@@ -18,15 +18,15 @@ BATCH_SIZE = 128
 LEARNING_RATE = 0.001
 WEIGHT_DECAY = 1e-4
 LABEL_SMOOTHING = 0.1
-EPOCHS_PER_PHASE = 30
+EPOCHS_PER_PHASE = 40  # zvýšené z 30 na 40 pre lepšiu generalizáciu
 
 # === Curriculum fázy ===
 CURRICULUM_PHASES = [
-    (0, 30, {'gaus': False, 'pois': False, 'snp': False}),
-    (30, 60, {'gaus': True, 'pois': False, 'snp': False}),
-    (60, 90, {'gaus': False, 'pois': True, 'snp': False}),
-    (90, 120, {'gaus': False, 'pois': False, 'snp': True}),
-    (120, 150, {'gaus': True, 'pois': True, 'snp': True})
+    (0, 60,  {'gaus': False, 'pois': False, 'snp': False}),   # 60 epôch na čisté
+    (60, 100, {'gaus': True, 'pois': False, 'snp': False}),   # 40 epôch na gaussian
+    (100, 130, {'gaus': False, 'pois': True, 'snp': False}),  # 30 epôch na poisson
+    (130, 160, {'gaus': False, 'pois': False, 'snp': True}),  # 30 epôch na salt & pepper
+    (160, 200, {'gaus': True, 'pois': True, 'snp': True})     # 40 epôch na kombinovaný
 ]
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -70,17 +70,17 @@ def train_and_evaluate(dataset_name, dataset, model_save_path, model, epochs=30,
     }, model_save_path)
     print(f"💾 Model uložený: {model_save_path}")
 
-    # Logovanie metrík
     metrics_path = "results/training_metrics.csv"
     rows = []
     for epoch, record in enumerate(history):
+        # metrics = record.get(torchbearer.METRICS, {})
         rows.append({
             "Phase": phase_desc,
             "Epoch": epoch,
-            "Train_Loss": record['loss'],
-            "Train_Accuracy": record['accuracy'],
-            "Val_Loss": record['val_loss'],
-            "Val_Accuracy": record['val_accuracy']
+            "Train_Loss": record.get('loss'),
+            "Train_Accuracy": record.get('accuracy'),
+            "Val_Loss": record.get('val_loss'),
+            "Val_Accuracy": record.get('val_accuracy')
         })
 
     df = pd.DataFrame(rows)
@@ -103,4 +103,21 @@ if __name__ == "__main__":
         phase_desc = f"{start_epoch}-{end_epoch} {','.join([k for k, v in noise_config.items() if v]) or 'clean'}"
         train_and_evaluate('multiclass', dataset, model_path, model=model, epochs=end_epoch-start_epoch, batch_size=BATCH_SIZE, phase_desc=phase_desc, noise_config=noise_config)
 
+    # Re-eval na čistých dátach po všetkých fázach
+    print("\n🔍 Re-eval na originálnych dátach po kombinovanej fáze")
+    clean_transform = transform_data(train=False, gaus=False, pois=False, snp=False)
+    test_dataset = OxfordPetsMulticlass(root='./data', transform=clean_transform, split='test')
+    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
+    model.eval()
+
+    correct = total = 0
+    with torch.no_grad():
+        for images, labels in test_loader:
+            images, labels = images.to(device), labels.to(device)
+            outputs = model(images)
+            _, predicted = torch.max(outputs, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+    print(f"✅ Presnosť na čistých testovacích dátach: {100 * correct / total:.2f}%")
     print("\n✅ Kompletný tréning modelu multiclass ResNet34 hotový!")

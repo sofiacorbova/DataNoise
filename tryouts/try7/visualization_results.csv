@@ -1,0 +1,51 @@
+Image_Index,Variant,True_Label,Predicted_Label,Confidence,Top3_Predictions,Train_Noise,Test_Noise
+3130,Original,leonberger,leonberger,46.86%,leonberger (46.9%); german_shorthaired (12.8%); wheaten_terrier (12.7%),"gaus, pois, snp",Original
+3130,Gaussian Noise,leonberger,leonberger,31.49%,leonberger (31.5%); wheaten_terrier (26.0%); german_shorthaired (13.7%),"gaus, pois, snp",Gaussian Noise
+3130,Poisson Noise,leonberger,leonberger,46.13%,leonberger (46.1%); wheaten_terrier (13.0%); german_shorthaired (13.0%),"gaus, pois, snp",Poisson Noise
+3130,Salt & Pepper,leonberger,leonberger,21.34%,leonberger (21.3%); german_shorthaired (15.7%); wheaten_terrier (6.3%),"gaus, pois, snp",Salt & Pepper
+3130,Combined Noise,leonberger,wheaten_terrier,63.63%,wheaten_terrier (63.6%); leonberger (6.5%); german_shorthaired (6.1%),"gaus, pois, snp",Combined Noise
+670,Original,beagle,beagle,95.21%,beagle (95.2%); american_bulldog (0.4%); basset_hound (0.3%),"gaus, pois, snp",Original
+670,Gaussian Noise,beagle,beagle,94.76%,beagle (94.8%); german_shorthaired (0.4%); american_bulldog (0.4%),"gaus, pois, snp",Gaussian Noise
+670,Poisson Noise,beagle,beagle,95.24%,beagle (95.2%); american_bulldog (0.4%); basset_hound (0.3%),"gaus, pois, snp",Poisson Noise
+670,Salt & Pepper,beagle,beagle,83.99%,beagle (84.0%); egyptian_mau (4.5%); bengal (2.8%),"gaus, pois, snp",Salt & Pepper
+670,Combined Noise,beagle,beagle,60.78%,beagle (60.8%); egyptian_mau (13.0%); english_setter (3.2%),"gaus, pois, snp",Combined Noise
+5692,Original,wheaten_terrier,wheaten_terrier,85.66%,wheaten_terrier (85.7%); yorkshire_terrier (2.2%); havanese (2.1%),"gaus, pois, snp",Original
+5692,Gaussian Noise,wheaten_terrier,wheaten_terrier,92.64%,wheaten_terrier (92.6%); yorkshire_terrier (0.7%); havanese (0.5%),"gaus, pois, snp",Gaussian Noise
+5692,Poisson Noise,wheaten_terrier,wheaten_terrier,85.94%,wheaten_terrier (85.9%); yorkshire_terrier (2.1%); havanese (2.1%),"gaus, pois, snp",Poisson Noise
+5692,Salt & Pepper,wheaten_terrier,wheaten_terrier,33.69%,wheaten_terrier (33.7%); egyptian_mau (6.3%); bengal (5.2%),"gaus, pois, snp",Salt & Pepper
+5692,Combined Noise,wheaten_terrier,wheaten_terrier,82.39%,wheaten_terrier (82.4%); havanese (3.2%); egyptian_mau (1.4%),"gaus, pois, snp",Combined Noise
+3867,Original,pomeranian,samoyed,54.94%,samoyed (54.9%); pomeranian (27.7%); yorkshire_terrier (2.4%),"gaus, pois, snp",Original
+3867,Gaussian Noise,pomeranian,samoyed,54.48%,samoyed (54.5%); pomeranian (16.8%); yorkshire_terrier (5.5%),"gaus, pois, snp",Gaussian Noise
+3867,Poisson Noise,pomeranian,samoyed,54.42%,samoyed (54.4%); pomeranian (28.5%); yorkshire_terrier (2.4%),"gaus, pois, snp",Poisson Noise
+3867,Salt & Pepper,pomeranian,samoyed,75.10%,samoyed (75.1%); pomeranian (8.6%); ragdoll (1.5%),"gaus, pois, snp",Salt & Pepper
+3867,Combined Noise,pomeranian,yorkshire_terrier,34.43%,yorkshire_terrier (34.4%); pomeranian (8.5%); ragdoll (8.0%),"gaus, pois, snp",Combined Noise
+4174,Original,ragdoll,ragdoll,90.60%,ragdoll (90.6%); russian_blue (2.6%); birman (1.1%),"gaus, pois, snp",Original
+4174,Gaussian Noise,ragdoll,ragdoll,78.38%,ragdoll (78.4%); russian_blue (9.9%); birman (1.8%),"gaus, pois, snp",Gaussian Noise
+4174,Poisson Noise,ragdoll,ragdoll,90.32%,ragdoll (90.3%); russian_blue (2.7%); birman (1.1%),"gaus, pois, snp",Poisson Noise
+4174,Salt & Pepper,ragdoll,ragdoll,82.29%,ragdoll (82.3%); russian_blue (9.8%); birman (0.7%),"gaus, pois, snp",Salt & Pepper
+4174,Combined Noise,ragdoll,ragdoll,78.63%,ragdoll (78.6%); russian_blue (5.1%); wheaten_terrier (4.3%),"gaus, pois, snp",Combined Noise
+3212,Original,maine_coon,maine_coon,68.15%,maine_coon (68.2%); persian (18.1%); birman (0.6%),"gaus, pois, snp",Original
+3212,Gaussian Noise,maine_coon,maine_coon,50.90%,maine_coon (50.9%); persian (36.4%); birman (0.6%),"gaus, pois, snp",Gaussian Noise
+3212,Poisson Noise,maine_coon,maine_coon,68.87%,maine_coon (68.9%); persian (17.5%); birman (0.6%),"gaus, pois, snp",Poisson Noise
+3212,Salt & Pepper,maine_coon,persian,60.13%,persian (60.1%); maine_coon (30.2%); egyptian_mau (0.6%),"gaus, pois, snp",Salt & Pepper
+3212,Combined Noise,maine_coon,persian,73.18%,persian (73.2%); maine_coon (16.5%); ragdoll (0.5%),"gaus, pois, snp",Combined Noise
+1888,Original,egyptian_mau,egyptian_mau,95.88%,egyptian_mau (95.9%); bengal (0.3%); russian_blue (0.2%),"gaus, pois, snp",Original
+1888,Gaussian Noise,egyptian_mau,egyptian_mau,95.52%,egyptian_mau (95.5%); bengal (0.3%); havanese (0.2%),"gaus, pois, snp",Gaussian Noise
+1888,Poisson Noise,egyptian_mau,egyptian_mau,95.87%,egyptian_mau (95.9%); bengal (0.3%); russian_blue (0.2%),"gaus, pois, snp",Poisson Noise
+1888,Salt & Pepper,egyptian_mau,egyptian_mau,95.76%,egyptian_mau (95.8%); russian_blue (0.4%); bengal (0.2%),"gaus, pois, snp",Salt & Pepper
+1888,Combined Noise,egyptian_mau,egyptian_mau,79.41%,egyptian_mau (79.4%); bengal (4.3%); wheaten_terrier (1.5%),"gaus, pois, snp",Combined Noise
+3908,Original,pomeranian,pomeranian,91.90%,pomeranian (91.9%); chihuahua (0.3%); english_setter (0.3%),"gaus, pois, snp",Original
+3908,Gaussian Noise,pomeranian,pomeranian,93.67%,pomeranian (93.7%); chihuahua (0.3%); samoyed (0.3%),"gaus, pois, snp",Gaussian Noise
+3908,Poisson Noise,pomeranian,pomeranian,91.95%,pomeranian (92.0%); chihuahua (0.3%); english_setter (0.3%),"gaus, pois, snp",Poisson Noise
+3908,Salt & Pepper,pomeranian,pomeranian,90.48%,pomeranian (90.5%); egyptian_mau (0.5%); american_pit_bull_terrier (0.4%),"gaus, pois, snp",Salt & Pepper
+3908,Combined Noise,pomeranian,pomeranian,86.10%,pomeranian (86.1%); keeshond (1.1%); samoyed (1.0%),"gaus, pois, snp",Combined Noise
+3024,Original,keeshond,keeshond,60.27%,keeshond (60.3%); egyptian_mau (9.6%); persian (2.3%),"gaus, pois, snp",Original
+3024,Gaussian Noise,keeshond,keeshond,34.58%,keeshond (34.6%); egyptian_mau (23.6%); persian (4.1%),"gaus, pois, snp",Gaussian Noise
+3024,Poisson Noise,keeshond,keeshond,60.28%,keeshond (60.3%); egyptian_mau (9.7%); persian (2.3%),"gaus, pois, snp",Poisson Noise
+3024,Salt & Pepper,keeshond,egyptian_mau,80.64%,egyptian_mau (80.6%); ragdoll (3.8%); persian (2.3%),"gaus, pois, snp",Salt & Pepper
+3024,Combined Noise,keeshond,egyptian_mau,28.55%,egyptian_mau (28.6%); wheaten_terrier (18.2%); english_setter (7.5%),"gaus, pois, snp",Combined Noise
+4057,Original,pug,pug,86.90%,pug (86.9%); wheaten_terrier (0.6%); bombay (0.5%),"gaus, pois, snp",Original
+4057,Gaussian Noise,pug,pug,86.97%,pug (87.0%); boxer (0.7%); wheaten_terrier (0.6%),"gaus, pois, snp",Gaussian Noise
+4057,Poisson Noise,pug,pug,86.90%,pug (86.9%); wheaten_terrier (0.6%); bombay (0.5%),"gaus, pois, snp",Poisson Noise
+4057,Salt & Pepper,pug,pug,86.55%,pug (86.6%); bombay (0.5%); wheaten_terrier (0.5%),"gaus, pois, snp",Salt & Pepper
+4057,Combined Noise,pug,pug,82.31%,pug (82.3%); boxer (2.2%); wheaten_terrier (0.9%),"gaus, pois, snp",Combined Noise
