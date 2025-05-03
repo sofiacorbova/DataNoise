@@ -16,12 +16,20 @@ class AddGaussianNoise(torch.nn.Module):
         return tensor + torch.randn_like(tensor) * self.std + self.mean
 
 class AddPoissonNoise(torch.nn.Module):
+    def __init__(self, lam=20):
+        super().__init__()
+        self.lam = lam
+
     def forward(self, tensor):
-        tensor = (tensor + 1.0) / 2.0  # z [-1, 1] na [0, 1]
-        tensor = torch.clamp(tensor, min=0.0)  # zabezpečí nezáporné hodnoty
-        vals = 2 ** torch.ceil(torch.log2(torch.tensor(tensor.numel(), dtype=torch.float32)))
-        noisy = torch.poisson(tensor * vals) / vals
-        noisy = noisy * 2.0 - 1.0  # späť na [-1, 1]
+        # Predpokladá vstup v rozsahu [0, 1] alebo [-1, 1]
+        tensor = (tensor + 1.0) / 2.0  # škáluj do [0, 1]
+        tensor = torch.clamp(tensor, min=0.0, max=1.0)
+
+        # Pridaj Poissonov šum (vhodne škálovaný)
+        noisy = torch.poisson(tensor * self.lam) / self.lam
+
+        # Naspäť do [-1, 1]
+        noisy = noisy * 2.0 - 1.0
         return torch.clamp(noisy, -1.0, 1.0)
 
 class AddSaltPepperNoise(torch.nn.Module):
