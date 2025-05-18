@@ -13,6 +13,15 @@ from torchbearer.callbacks import EarlyStopping
 import torchbearer
 from torchbearer import Trial
 
+# === Definuj kombinácie šumu ===
+INTENSITY_EXPERIMENTS = [
+    {'std': 0.04, 'lam': 70, 'amount': 0.025},
+    {'std': 0.05, 'lam': 60, 'amount': 0.03},
+    {'std': 0.06, 'lam': 50,  'amount': 0.035},
+    {'std': 0.08, 'lam': 40, 'amount': 0.04}
+]
+
+
 # === Hyperparametre ===
 BATCH_SIZE = 128
 LEARNING_RATE = 0.001
@@ -57,10 +66,10 @@ def train_and_evaluate(dataset_name, dataset, model_save_path, model, epochs=30,
     trial = Trial(model, optimizer, criterion, metrics=['loss', 'accuracy'], callbacks=[early_stopping]).to(device)
     trial.with_generators(train_loader, val_loader, test_loader)
 
-    print(f"\n🔵 Trénujem model '{dataset_name}'...")
+    print(f"\nTrénujem model '{dataset_name}'...")
     history = trial.run(epochs=epochs)
 
-    print(f"✅ Vyhodnotenie '{dataset_name}' na testovacej sade:")
+    print(f"Vyhodnotenie '{dataset_name}' na testovacej sade:")
     trial.evaluate(data_key=torchbearer.TEST_DATA)
 
     os.makedirs(os.path.dirname(model_save_path), exist_ok=True)
@@ -68,9 +77,9 @@ def train_and_evaluate(dataset_name, dataset, model_save_path, model, epochs=30,
         'model_state': model.state_dict(),
         'train_noise_config': noise_config
     }, model_save_path)
-    print(f"💾 Model uložený: {model_save_path}")
+    print(f"Model uložený: {model_save_path}")
 
-    metrics_path = "results/training_metrics.csv"
+    metrics_path = "DataNoise/src/results/training_metrics.csv"
     rows = []
     for epoch, record in enumerate(history):
         # metrics = record.get(torchbearer.METRICS, {})
@@ -89,35 +98,39 @@ def train_and_evaluate(dataset_name, dataset, model_save_path, model, epochs=30,
         df = pd.concat([df_old, df], ignore_index=True)
 
     df.to_csv(metrics_path, index=False)
-    print(f"📊 Výsledky uložené do {metrics_path}")
+    print(f"Výsledky uložené do {metrics_path}")
 
 # === Hlavný beh ===
 if __name__ == "__main__":
-    model_path = f"models/model_multiclass_resnet34.pth"
-    model = create_model()  # Vytvoríme model raz
+    print(f"\nSpúšťam {len(INTENSITY_EXPERIMENTS)} experimentov s curriculum learningom")
 
-    for start_epoch, end_epoch, noise_config in CURRICULUM_PHASES:
-        print(f"🛠️ Trénujem model ResNet34: epócha {start_epoch}-{end_epoch}, šum: {noise_config}")
-        train_transform = transform_data(train=True, **noise_config)
-        dataset = OxfordPetsMulticlass(root='./data', transform=train_transform)
-        phase_desc = f"{start_epoch}-{end_epoch} {','.join([k for k, v in noise_config.items() if v]) or 'clean'}"
-        train_and_evaluate('multiclass', dataset, model_path, model=model, epochs=end_epoch-start_epoch, batch_size=BATCH_SIZE, phase_desc=phase_desc, noise_config=noise_config)
+    for i, intensity_config in enumerate(INTENSITY_EXPERIMENTS):
+        model = create_model()
+        tag = f"std{intensity_config['std']}_lam{intensity_config['lam']}_amt{intensity_config['amount']}"
 
-    # Re-eval na čistých dátach po všetkých fázach
-    print("\n🔍 Re-eval na originálnych dátach po kombinovanej fáze")
-    clean_transform = transform_data(train=False, gaus=False, pois=False, snp=False)
-    test_dataset = OxfordPetsMulticlass(root='./data', transform=clean_transform, split='test')
-    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
-    model.eval()
+        for start_epoch, end_epoch, noise_config in CURRICULUM_PHASES:
+            phase = f"{start_epoch}-{end_epoch}_{tag}_{','.join([k for k,v in noise_config.items() if v]) or 'clean'}"
+            model_path = os.path.join("models_intensity", f"resnet34_{phase}.pth")
 
-    correct = total = 0
-    with torch.no_grad():
-        for images, labels in test_loader:
-            images, labels = images.to(device), labels.to(device)
-            outputs = model(images)
-            _, predicted = torch.max(outputs, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
+            train_transform = transform_data(
+                train=True,
+                std=intensity_config['std'],
+                lam=intensity_config['lam'],
+                amount=intensity_config['amount'],
+                **noise_config
+            )
+            dataset = OxfordPetsMulticlass(root='./data', transform=train_transform)
 
-    print(f"✅ Presnosť na čistých testovacích dátach: {100 * correct / total:.2f}%")
-    print("\n✅ Kompletný tréning modelu multiclass ResNet34 hotový!")
+            print(f"\nExperiment {i+1}/{len(INTENSITY_EXPERIMENTS)} — fáza {start_epoch}-{end_epoch}, šum: {noise_config}, intenzita: {intensity_config}")
+            train_and_evaluate(
+                dataset_name=f"exp{i+1}",
+                dataset=dataset,
+                model_save_path=model_path,
+                model=model,
+                epochs=end_epoch-start_epoch,
+                batch_size=BATCH_SIZE,
+                phase_desc=phase,
+                noise_config=noise_config
+            )
+
+    print("\nVšetky experimenty curriculum learningu s rôznymi intenzitami dokončené!")
